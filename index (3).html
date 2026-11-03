@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAIRA — THWS MAI Student Assistant</title>
+<meta name="description" content="CAIRA answers questions for THWS Master of AI students using RAG over official university documents. See how a question flows through the system.">
+<style>
+  :root{
+    --bg:#0A0F1C; --panel:#0F1830; --panel2:#142042; --line:#1E2C52;
+    --text:#E8EDF2; --muted:#8FA0B8; --blue:#1E90FF; --blue-l:#6FB7FF; --teal:#4DD8C0; --amber:#F4A83C;
+    --sans:'Segoe UI','DejaVu Sans','Helvetica Neue',Arial,sans-serif;
+    --mono:'SFMono-Regular',Consolas,'DejaVu Sans Mono',monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg); color:var(--text); font-family:var(--sans); line-height:1.6; overflow-x:hidden;}
+  a{color:inherit; text-decoration:none;}
+  button,input,textarea{font:inherit; color:inherit;}
+  button{cursor:pointer; background:none; border:none;}
+  :focus-visible{outline:2px solid var(--blue-l); outline-offset:3px;}
+  .wrap{max-width:1000px; margin:0 auto; padding:0 24px;}
+  section{padding:70px 0;}
+  h2{font-size:clamp(26px,4vw,34px); letter-spacing:-0.01em; margin-bottom:8px;}
+  .lead{color:var(--muted); max-width:62ch; margin-bottom:28px;}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.12em; color:var(--blue-l); text-transform:uppercase; margin-bottom:12px; display:block;}
+  .btn{font-family:var(--mono); font-size:13px; padding:12px 20px; border-radius:6px; border:1px solid var(--blue); color:var(--blue-l); display:inline-block; transition:all .2s;}
+  .btn:hover{background:var(--blue); color:#fff;}
+  .btn.solid{background:var(--blue); color:#fff;}
+  .btn.solid:hover{background:transparent; color:var(--blue-l);}
+  .btn.ghost{border-color:var(--line); color:var(--muted);}
+  .btn.ghost:hover{border-color:var(--text); color:var(--text); background:transparent;}
+
+  /* background network canvas */
+  #net{position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.55;}
+  header,main,footer{position:relative; z-index:1;}
+
+  /* HERO */
+  .hero{min-height:78vh; display:flex; flex-direction:column; justify-content:center; padding-top:40px;}
+  .hero h1{font-size:clamp(56px,11vw,110px); line-height:1; letter-spacing:-0.03em; margin-bottom:14px;}
+  .hero h1 span{color:var(--blue-l);}
+  .typed{font-family:var(--mono); font-size:clamp(16px,2.6vw,22px); color:var(--teal); min-height:1.6em; margin-bottom:20px;}
+  .caret{display:inline-block; width:2px; height:1em; background:var(--blue); margin-left:3px; vertical-align:-0.12em; animation:blink 1s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .hero p.sub{color:var(--muted); max-width:56ch; font-size:18px; margin-bottom:28px;}
+  .hero .row{display:flex; gap:12px; flex-wrap:wrap;}
+  .facts{display:flex; flex-wrap:wrap; gap:8px; margin-top:34px;}
+  .facts span{font-family:var(--mono); font-size:12px; color:var(--blue-l); border:1px solid var(--line); background:var(--panel); padding:6px 12px; border-radius:999px;}
+
+  /* DEMO */
+  .demo{display:grid; grid-template-columns:1fr 1.25fr; gap:22px; align-items:start;}
+  .demo > *{min-width:0;}
+  @media(max-width:820px){ .demo{grid-template-columns:minmax(0,1fr);} }
+  .chip{max-width:100%; white-space:normal; overflow-wrap:anywhere;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px;}
+  .group{margin-bottom:16px;}
+  .group:last-child{margin-bottom:0;}
+  .gl{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px;}
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{font-size:14px; padding:8px 12px; border:1px solid var(--line); border-radius:8px; background:var(--panel2); text-align:left; transition:all .15s;}
+  .chip:hover{border-color:var(--blue); color:var(--blue-l);}
+  .chip.on{border-color:var(--blue); background:rgba(30,144,255,.16); color:#fff;}
+  .ask{display:flex; gap:10px; margin-bottom:18px;}
+  .ask input{flex:1; min-width:0; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:12px 14px; outline:none;}
+  .ask input:focus{border-color:var(--blue);}
+  .steps{display:grid; gap:10px; margin-bottom:18px;}
+  .step{display:grid; grid-template-columns:34px 1fr; gap:12px; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--panel2); opacity:.45; transition:all .35s;}
+  .step .n{width:34px; height:34px; border-radius:50%; border:1px solid var(--line); display:grid; place-items:center; font-family:var(--mono); font-size:13px; color:var(--muted);}
+  .step b{display:block; font-size:15px;}
+  .step p{color:var(--muted); font-size:13.5px; margin-top:2px;}
+  .step.on{opacity:1; border-color:var(--blue); box-shadow:0 0 0 1px rgba(30,144,255,.25);}
+  .step.on .n{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .step.done{opacity:1;}
+  .step.done .n{background:var(--teal); border-color:var(--teal); color:#06231f;}
+  .answer{border:1px dashed var(--line); border-radius:10px; padding:16px; min-height:96px; color:var(--muted); font-size:14.5px; white-space:pre-wrap;}
+  .answer.live{border-style:solid; border-color:var(--teal); color:var(--text);}
+  .answer h4{font-size:12px; font-family:var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--teal); margin-bottom:8px;}
+  .answer code, pre.code{font-family:var(--mono); font-size:12.5px;}
+  .src{margin-top:10px; font-family:var(--mono); font-size:12px; color:var(--blue-l);}
+
+  details.live{margin-top:14px; border:1px solid var(--line); border-radius:10px; background:var(--panel2);}
+  details.live summary{cursor:pointer; padding:12px 14px; font-family:var(--mono); font-size:13px; color:var(--blue-l);}
+  details.live .in{padding:0 14px 14px; color:var(--muted); font-size:13.5px;}
+  details.live input{width:100%; margin:10px 0; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; outline:none; font-family:var(--mono); font-size:13px;}
+
+  /* UNDER THE HOOD */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px;}
+  .tile{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; transition:transform .2s, border-color .2s;}
+  .tile:hover{transform:translateY(-3px); border-color:var(--blue);}
+  .tile .k{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--blue-l);}
+  .tile h3{font-size:18px; margin:6px 0;}
+  .tile p{color:var(--muted); font-size:14px;}
+  .tile code{font-family:var(--mono); font-size:12.5px; color:var(--teal);}
+
+  .toggle{display:inline-flex; border:1px solid var(--line); border-radius:999px; padding:4px; background:var(--panel); margin-bottom:18px;}
+  .toggle button{padding:8px 18px; border-radius:999px; font-size:14px; color:var(--muted);}
+  .toggle button.on{background:var(--blue); color:#fff;}
+  .compare{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px;}
+  .compare .tile .big{font-size:30px; font-weight:700; color:var(--teal); margin:4px 0;}
+  .note{color:var(--muted); font-size:13px; margin-top:12px;}
+
+  /* RUN IT */
+  .tabs{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
+  .tabs button{font-family:var(--mono); font-size:12.5px; padding:8px 14px; border:1px solid var(--line); border-radius:6px; color:var(--muted);}
+  .tabs button.on{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .codebox{position:relative; background:#070B16; border:1px solid var(--line); border-radius:10px; padding:18px 70px 18px 18px;}
+  .codebox pre{font-family:var(--mono); font-size:13.5px; color:var(--teal); white-space:pre-wrap; word-break:break-word;}
+  .copy{position:absolute; top:10px; right:10px; font-family:var(--mono); font-size:11px; padding:6px 10px; border:1px solid var(--line); border-radius:6px; color:var(--muted);}
+  .copy:hover{color:var(--text); border-color:var(--text);}
+  .tabnote{color:var(--muted); font-size:14px; margin-top:12px;}
+
+  footer{border-top:1px solid var(--line); padding:50px 0 60px; color:var(--muted); font-size:14px;}
+  footer .row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px;}
+  .reveal{opacity:0; transform:translateY(16px); transition:opacity .6s, transform .6s;}
+  .reveal.in{opacity:1; transform:none;}
+  @media (prefers-reduced-motion: reduce){ .reveal{opacity:1; transform:none; transition:none;} html{scroll-behavior:auto;} .caret{animation:none;} }
+</style>
+</head>
+<body>
+<canvas id="net" aria-hidden="true"></canvas>
+
+<main class="wrap">
+
+  <section class="hero">
+    <span class="eyebrow">THWS · Master of Artificial Intelligence</span>
+    <h1>CAIRA<span>.</span></h1>
+    <div class="typed"><span id="typed"></span><span class="caret"></span></div>
+    <p class="sub">A student-built assistant that answers questions about admissions, courses, housing and campus life, using official THWS documents.</p>
+    <div class="row">
+      <a class="btn solid" href="#try">Try the demo</a>
+      <a class="btn" href="#run">Run it yourself</a>
+      <a class="btn ghost" href="https://github.com/riyazbiju/CAIRA" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <div class="facts">
+      <span>German + English</span><span>RAG with FAISS</span><span>Qwen2.5</span><span>FastAPI + Gradio</span>
+    </div>
+  </section>
+
+  <section id="try">
+    <span class="eyebrow">Interactive</span>
+    <h2>Follow a question through CAIRA</h2>
+    <p class="lead">Pick a question or type your own. Watch the four steps CAIRA runs. This page shows how the system works. For a real answer, connect your own CAIRA backend below.</p>
+
+    <div class="demo">
+      <div class="card reveal" id="questions"></div>
+      <div class="card reveal">
+        <div class="ask">
+          <input id="q" type="text" placeholder="Ask a question about THWS MAI…" aria-label="Your question" maxlength="200">
+          <button class="btn solid" id="run" type="button">Run</button>
+        </div>
+        <div class="steps" id="steps"></div>
+        <div class="answer" id="answer" aria-live="polite">Pick a question and press Run.</div>
+
+        <details class="live">
+          <summary>Connect your own CAIRA backend (optional)</summary>
+          <div class="in">
+            Start the backend with <code>python backend/main.py</code>, then enter its address. The page will send your question to <code>POST /ask</code> and show the real answer.
+            <input id="api" type="text" value="http://localhost:8000" aria-label="Backend address" spellcheck="false">
+            <label style="display:flex; gap:8px; align-items:center;"><input id="useLive" type="checkbox" style="width:auto; margin:0;"> Use my backend when I press Run</label>
+            <p style="margin-top:8px;">Your browser needs permission to call the backend (CORS). If it is blocked, the page will tell you.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section id="inside">
+    <span class="eyebrow">Under the hood</span>
+    <h2>What makes it work</h2>
+    <p class="lead">The answers come from official documents, not from the model's memory.</p>
+    <div class="grid">
+      <div class="tile reveal"><span class="k">Retrieval</span><h3>Search by meaning</h3><p>Documents are split into chunks and embedded with <code>multilingual-e5-small</code>. <code>FAISS</code> finds the closest ones, in German or English.</p></div>
+      <div class="tile reveal"><span class="k">Questions</span><h3>Handles vague ones</h3><p>Query expansion, cross-topic search and ambiguity handling help with short or multi-part questions.</p></div>
+      <div class="tile reveal"><span class="k">Model</span><h3>Runs locally</h3><p>Qwen2.5 writes the answer from the retrieved text. 1.5B for local development, 7B for production.</p></div>
+      <div class="tile reveal"><span class="k">Speed</span><h3>Tuned for latency</h3><p>Up to <code>150</code> new tokens, <code>600</code> characters per chunk, top <code>2</code> chunks, repetition penalty <code>1.1</code>.</p></div>
+    </div>
+  </section>
+
+  <section id="speed">
+    <span class="eyebrow">Interactive</span>
+    <h2>Local laptop or production server?</h2>
+    <p class="lead">Same pipeline, different hardware.</p>
+    <div class="toggle" role="tablist" aria-label="Setup">
+      <button class="on" data-mode="local" type="button">Local CPU</button>
+      <button data-mode="prod" type="button">Production GPU</button>
+    </div>
+    <div class="compare" id="compare"></div>
+    <p class="note" id="speedNote"></p>
+  </section>
+
+  <section id="run">
+    <span class="eyebrow">Get started</span>
+    <h2>Run CAIRA yourself</h2>
+    <p class="lead">You need Python 3.13+, 8 GB RAM and Tesseract OCR for the PDF processing.</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="codebox"><button class="copy" id="copy" type="button">Copy</button><pre id="code"></pre></div>
+    <p class="tabnote" id="tabnote"></p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="btn solid" href="https://github.com/riyazbiju/CAIRA" target="_blank" rel="noopener">View the code</a>
+      <a class="btn ghost" href="https://riyazbiju.github.io" target="_blank" rel="noopener">More of my work</a>
+    </div>
+    CAIRA is a student project built for THWS MAI students. Built by Riya Biju.
+  </div>
+</footer>
+
+<script>
+(function(){
+  var $ = function(s){return document.querySelector(s);};
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- Recorded answers: add real CAIRA outputs here and they show as "Recorded answer".
+     Format:  "Exact question text": { answer: "…", sources: ["document-name.pdf"] }  ---- */
+  var SAMPLES = {
+  };
+
+  var QUESTIONS = [
+    ['Admissions', ['What are the admission requirements?']],
+    ['Courses', ['What subjects are in the AI Master?', 'How do I register for exams?']],
+    ['Housing', ['How do I find housing?', 'Wie finde ich eine Unterkunft in Würzburg?']],
+    ['Campus', ['What does the semester ticket cover?']]
+  ];
+
+  var STEPS = [
+    ['Understand the question', 'CAIRA expands vague or multi-part questions so nothing is missed.'],
+    ['Search the documents', 'The question becomes a vector. FAISS finds the closest chunks across admission, courses, housing, the Würzburg guide and general topics.'],
+    ['Pick the best context', 'The top 2 chunks, up to 600 characters each, go to the model together with their source documents.'],
+    ['Write the answer', 'Qwen2.5 answers in German or English from that context, up to 150 new tokens.']
+  ];
+
+  /* typed hero line */
+  var phrases = ['How do I find housing in Würzburg?','What are the admission requirements?','How do I register for exams?','Wie finde ich eine Unterkunft?'];
+  var typed = $('#typed');
+  if(reduce){ typed.textContent = phrases[0]; }
+  else{
+    var pi=0, ci=0, del=false;
+    (function tick(){
+      var p = phrases[pi];
+      typed.textContent = p.slice(0,ci);
+      if(!del && ci<p.length){ ci++; setTimeout(tick,55); }
+      else if(!del){ del=true; setTimeout(tick,1600); }
+      else if(ci>0){ ci--; setTimeout(tick,24); }
+      else{ del=false; pi=(pi+1)%phrases.length; setTimeout(tick,280); }
+    })();
+  }
+
+  /* question chips */
+  var qbox = $('#questions'), qin = $('#q');
+  QUESTIONS.forEach(function(g){
+    var wrap = document.createElement('div'); wrap.className='group';
+    wrap.innerHTML = '<div class="gl">'+g[0]+'</div>';
+    var chips = document.createElement('div'); chips.className='chips';
+    g[1].forEach(function(q){
+      var b = document.createElement('button'); b.type='button'; b.className='chip'; b.textContent=q;
+      b.addEventListener('click', function(){
+        qin.value = q;
+        document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('on');});
+        b.classList.add('on');
+        run();
+      });
+      chips.appendChild(b);
+    });
+    wrap.appendChild(chips); qbox.appendChild(wrap);
+  });
+
+  /* steps */
+  var stepsEl = $('#steps');
+  STEPS.forEach(function(s,i){
+    var d = document.createElement('div'); d.className='step';
+    d.innerHTML = '<div class="n">'+(i+1)+'</div><div><b>'+s[0]+'</b><p>'+s[1]+'</p></div>';
+    stepsEl.appendChild(d);
+  });
+  var stepEls = Array.prototype.slice.call(stepsEl.children);
+  var answer = $('#answer');
+  var timers = [];
+  function esc(t){ return String(t).replace(/[&<>]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+
+  function setAnswer(html, live){
+    answer.className = 'answer' + (live ? ' live' : '');
+    answer.innerHTML = html;
+  }
+
+  function showResult(q){
+    var useLive = $('#useLive').checked;
+    var rec = SAMPLES[q];
+    if(useLive){
+      setAnswer('Asking your backend…', false);
+      var base = $('#api').value.replace(/\/+$/,'');
+      fetch(base + '/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({question:q, top_k:2})})
+        .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+        .then(function(data){
+          var text = data.answer || data.response || data.result || JSON.stringify(data, null, 2);
+          var srcs = data.sources || data.source_documents || null;
+          var html = '<h4>Live answer from your backend</h4>' + esc(text);
+          if(Array.isArray(srcs) && srcs.length){
+            html += '<div class="src">Sources: ' + esc(srcs.map(function(s){return typeof s==='string'?s:(s.source||s.file||s.title||JSON.stringify(s));}).join(' · ')) + '</div>';
+          }
+          setAnswer(html, true);
+        })
+        .catch(function(e){
+          setAnswer('Could not reach your backend at <code>'+esc(base)+'/ask</code> ('+esc(e.message)+').<br>Check that it is running. If it is, the browser may be blocking the call: the backend needs CORS enabled for this page.', false);
+        });
+      return;
+    }
+    if(rec){
+      var h = '<h4>Recorded answer</h4>' + esc(rec.answer);
+      if(rec.sources && rec.sources.length){ h += '<div class="src">Sources: ' + esc(rec.sources.join(' · ')) + '</div>'; }
+      setAnswer(h, true);
+      return;
+    }
+    setAnswer('That is the full path of your question. This page does not call the model, so it shows no answer.<br><br>To see a real one: start CAIRA (see <a href="#run" style="color:var(--blue-l)">Run CAIRA yourself</a>) and turn on the backend option below, or call it directly:<br><code>curl -X POST http://localhost:8000/ask -H "Content-Type: application/json" -d \'{"question": "'+esc(q).replace(/"/g,'\\"')+'", "top_k": 2}\'</code>', false);
+  }
+
+  function run(){
+    var q = qin.value.trim();
+    if(!q){ qin.focus(); return; }
+    timers.forEach(clearTimeout); timers = [];
+    stepEls.forEach(function(s){ s.classList.remove('on','done'); });
+    setAnswer('Working…', false);
+    var gap = reduce ? 0 : 650;
+    stepEls.forEach(function(s,i){
+      timers.push(setTimeout(function(){
+        if(i>0) stepEls[i-1].classList.replace('on','done');
+        s.classList.add('on');
+      }, gap*i));
+    });
+    timers.push(setTimeout(function(){
+      stepEls[stepEls.length-1].classList.replace('on','done');
+      showResult(q);
+    }, gap*stepEls.length));
+  }
+  $('#run').addEventListener('click', run);
+  qin.addEventListener('keydown', function(e){ if(e.key==='Enter') run(); });
+
+  /* local vs production */
+  var MODES = {
+    local: {
+      cards: [['Model','Qwen2.5-1.5B','Instruct, for local development'],['Hardware','CPU','8 GB RAM is enough'],['Per question','30–60 s','Normal on a laptop CPU']],
+      note: 'Good for development and testing. These times are what the project README reports for local CPU use.'
+    },
+    prod: {
+      cards: [['Model','Qwen2.5-7B','Suggested for production'],['Hardware','GPU + vLLM','Served through an OpenAI-compatible API'],['Per question','2–5 s','Projected, not yet measured']],
+      note: 'The production figure is a projection from the project README, not a benchmark. Setup: vLLM, nginx in front, HTTPS with Let\'s Encrypt.'
+    }
+  };
+  function showMode(m){
+    var box = $('#compare'); box.innerHTML='';
+    MODES[m].cards.forEach(function(c){
+      var d = document.createElement('div'); d.className='tile';
+      d.innerHTML = '<span class="k">'+c[0]+'</span><div class="big">'+c[1]+'</div><p>'+c[2]+'</p>';
+      box.appendChild(d);
+    });
+    $('#speedNote').textContent = MODES[m].note;
+    document.querySelectorAll('.toggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mode===m); });
+  }
+  document.querySelectorAll('.toggle button').forEach(function(b){ b.addEventListener('click', function(){ showMode(b.dataset.mode); }); });
+  showMode('local');
+
+  /* run-it tabs */
+  var TABS = [
+    ['1 · Setup', 'git clone https://github.com/riyazbiju/CAIRA.git\ncd CAIRA\npython -m venv venv\nsource venv/bin/activate\npip install -r requirements.txt', 'On Windows, activate with venv\\Scripts\\activate.'],
+    ['2 · Model', 'bash scripts/download_qwen.sh', 'Downloads Qwen2.5 (about 3 GB).'],
+    ['3 · Documents', 'python scripts/pre_processing.py\npython scripts/generate_embeddings.py', 'Cleans the source documents, then builds the FAISS index with multilingual-e5-small.'],
+    ['4 · Backend', 'python backend/main.py', 'Starts the FastAPI backend on port 8000.'],
+    ['5 · Frontend', 'python frontend/app.py', 'Starts the Gradio chat at http://localhost:7860. Use a second terminal.']
+  ];
+  var tabsEl = $('#tabs'), codeEl = $('#code'), noteEl = $('#tabnote');
+  function showTab(i){
+    codeEl.textContent = TABS[i][1]; noteEl.textContent = TABS[i][2];
+    Array.prototype.forEach.call(tabsEl.children, function(b,j){ b.classList.toggle('on', i===j); });
+  }
+  TABS.forEach(function(t,i){
+    var b = document.createElement('button'); b.type='button'; b.textContent=t[0];
+    b.addEventListener('click', function(){ showTab(i); });
+    tabsEl.appendChild(b);
+  });
+  showTab(0);
+  $('#copy').addEventListener('click', function(){
+    var btn = this, done = function(){ btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy';},1400); };
+    if(navigator.clipboard){ navigator.clipboard.writeText(codeEl.textContent).then(done, done); } else { done(); }
+  });
+
+  /* reveal on scroll */
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+  },{threshold:0.1});
+  document.querySelectorAll('.reveal').forEach(function(n){ io.observe(n); });
+
+  /* background network */
+  var cv = $('#net'), ctx = cv.getContext('2d'), dots = [], W=0, H=0;
+  function resize(){
+    var dpr = window.devicePixelRatio||1;
+    W = innerWidth; H = innerHeight;
+    cv.width = W*dpr; cv.height = H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    var n = Math.round(Math.min(60, W*H/22000));
+    dots = [];
+    for(var i=0;i<n;i++){ dots.push({x:Math.random()*W, y:Math.random()*H, vx:(Math.random()-.5)*.25, vy:(Math.random()-.5)*.25, hot:Math.random()<.2}); }
+  }
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    for(var i=0;i<dots.length;i++){
+      var a = dots[i];
+      if(!reduce){ a.x+=a.vx; a.y+=a.vy; if(a.x<0||a.x>W) a.vx*=-1; if(a.y<0||a.y>H) a.vy*=-1; }
+      for(var j=i+1;j<dots.length;j++){
+        var b = dots[j], d = Math.hypot(a.x-b.x, a.y-b.y);
+        if(d<150){ ctx.strokeStyle='rgba(30,144,255,'+(0.35*(1-d/150))+')'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+      }
+      ctx.fillStyle = a.hot ? 'rgba(77,216,192,.8)' : 'rgba(111,183,255,.7)';
+      ctx.beginPath(); ctx.arc(a.x,a.y,a.hot?2.6:2,0,6.283); ctx.fill();
+    }
+    if(!reduce) requestAnimationFrame(frame);
+  }
+  resize(); frame();
+  addEventListener('resize', function(){ resize(); if(reduce) frame(); });
+})();
+</script>
+</body>
+</html>
