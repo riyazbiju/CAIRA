@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="docs/banner.svg" width="100%" alt="CAIRA, a RAG assistant for THWS MAI students"/>
+<img src="banner%20(1).svg" width="100%" alt="CAIRA, a RAG assistant for THWS MAI students"/>
 
 ![Python](https://img.shields.io/badge/Python-3.13+-1E90FF?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![Gradio](https://img.shields.io/badge/Gradio-chat%20UI-F97316?style=flat-square)
 ![Languages](https://img.shields.io/badge/Languages-German%20%C2%B7%20English-0B3D91?style=flat-square)
 
-[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-riyazbiju.github.io%2FCAIRA-1E90FF?style=for-the-badge)](https://riyazbiju.github.io/CAIRA/)
+[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-riyazbiju.github.io%2FCAIRA-1E90FF?style=for-the-badge)](https://riyazbiju.github.io/CAIRA/index%20(3).html)
 
 **[What it does](#-what-it-does)** · **[How it works](#-how-it-works)** · **[Run it](#-run-it-in-5-steps)** · **[API](#-api)** · **[Deploy](#-production-deployment)** · **[Help](#-troubleshooting)**
 
@@ -24,7 +24,7 @@ CAIRA is a chat assistant for incoming students of the **Master of Artificial In
 - Handles short, vague or multi-part questions
 - Runs **fully locally**, so no student question leaves the machine
 
-> 👉 **New here?** Open the [interactive demo](https://riyazbiju.github.io/CAIRA/) to follow a question through the system, step by step.
+> 👉 **New here?** Open the [interactive demo](https://riyazbiju.github.io/CAIRA/index%20(3).html) to follow a question through the system, step by step.
 
 <details>
 <summary><b>💬 What you can ask</b></summary>
@@ -166,7 +166,10 @@ CAIRA/
 ├── source-docs/        official THWS documents
 ├── preprocessed/       chunks and embeddings
 ├── models/             qwen2.5-1.5b (local) · qwen2.5-7b (production)
-├── docs/               interactive demo page and banner
+├── index (3).html      interactive demo page
+├── banner (1).svg      animated README banner
+├── start_caira.sh      start script
+├── Thws-logo_English.png · background_img.png · chat_thumbnail.jpeg
 └── requirements.txt
 ```
 
