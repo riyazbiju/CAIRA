@@ -1,267 +1,223 @@
-# CAIRA - THWS MAI Chatbot
+<div align="center">
 
-AI assistant for THWS Master of Artificial Intelligence students. Get answers about courses, admissions, housing, and campus life.
+<img src="docs/banner.svg" width="100%" alt="CAIRA, a RAG assistant for THWS MAI students"/>
 
-## Setup
+![Python](https://img.shields.io/badge/Python-3.13+-1E90FF?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Gradio](https://img.shields.io/badge/Gradio-chat%20UI-F97316?style=flat-square)
+![Languages](https://img.shields.io/badge/Languages-German%20%C2%B7%20English-0B3D91?style=flat-square)
 
-**Requirements:**
-- Python 3.13+
-- 8GB RAM
-- Tesseract OCR (for PDF processing)
+[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-riyazbiju.github.io%2FCAIRA-1E90FF?style=for-the-badge)](https://riyazbiju.github.io/CAIRA/)
 
-**Quick Setup:**
-```bash
-# Clone and setup
-git clone <your-repo-url>
-cd mai-llm
+**[What it does](#-what-it-does)** · **[How it works](#-how-it-works)** · **[Run it](#-run-it-in-5-steps)** · **[API](#-api)** · **[Deploy](#-production-deployment)** · **[Help](#-troubleshooting)**
 
-# Create environment and install dependencies
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+</div>
 
-# Download AI model (~3GB)
-bash scripts/download_qwen.sh
+---
 
-# Process documents and create knowledge base
-python scripts/pre_processing.py
-python scripts/generate_embeddings.py --input preprocessed/rag_chunks.jsonl --output preprocessed/embeddings
+## 🎓 What it does
+
+CAIRA is a chat assistant for incoming students of the **Master of Artificial Intelligence (MAI)** program at THWS. It answers questions about admissions, courses, housing and campus life, using official THWS documents instead of guessing.
+
+- Answers in **German and English**
+- Shows the **source documents** behind each answer
+- Handles short, vague or multi-part questions
+- Runs **fully locally**, so no student question leaves the machine
+
+> 👉 **New here?** Open the [interactive demo](https://riyazbiju.github.io/CAIRA/) to follow a question through the system, step by step.
+
+<details>
+<summary><b>💬 What you can ask</b></summary>
+
+<br>
+
+| Topic | Example questions |
+|:--|:--|
+| **Admissions** | What are the admission requirements? |
+| **Courses** | What subjects are in the AI Master? · How do I register for exams? |
+| **Housing** | How do I find housing? · Wie finde ich eine Unterkunft in Würzburg? |
+| **Campus** | What does the semester ticket cover? |
+| **General** | Anything covered by the Würzburg guide and student documents |
+
+</details>
+
+---
+
+## ⚙️ How it works
+
+```mermaid
+flowchart LR
+    A["Student question<br/>German / English"] --> B["Gradio chat UI<br/>port 7860"]
+    B --> C["FastAPI backend<br/>port 8000"]
+    C --> D["Query expansion"]
+    D --> E["FAISS search<br/>multilingual-e5-small"]
+    E --> F["Top 2 chunks<br/>+ source documents"]
+    F --> G["Qwen2.5<br/>answer"]
+    G --> B
 ```
 
-## Running CAIRA
+1. **Understand.** CAIRA expands vague or multi-part questions so nothing is missed.
+2. **Search.** The question becomes a vector, and FAISS finds the closest chunks across all topics.
+3. **Pick context.** The top 2 chunks (up to 600 characters each) go to the model with their sources.
+4. **Answer.** Qwen2.5 writes the answer in the student's language, up to 150 new tokens.
 
-**Start the chatbot:**
+<details>
+<summary><b>🔧 Settings that keep it fast</b></summary>
+
+<br>
+
+| Setting | Value |
+|:--|:--|
+| Max new tokens | 150 (down from 256) |
+| Context per chunk | 600 characters (down from 1000) |
+| Chunks per question | 2 (down from 3) |
+| Repetition penalty | 1.1 |
+| Embeddings | `intfloat/multilingual-e5-small` |
+| Vector search | FAISS |
+| Model | Qwen2.5-1.5B-Instruct (local) · Qwen2.5-7B (production) |
+
+</details>
+
+<details>
+<summary><b>⏱️ Speed: laptop vs production</b></summary>
+
+<br>
+
+| Setup | Time per question |
+|:--|:--|
+| Local CPU, Qwen2.5-1.5B | 30–60 seconds (normal) |
+| Production GPU with vLLM, Qwen2.5-7B | 2–5 seconds (projected, not yet measured) |
+
+</details>
+
+---
+
+## 🚀 Run it in 5 steps
+
+**You need:** Python 3.13+, 8 GB RAM and [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for PDF processing.
+
 ```bash
-# Terminal 1: Backend
+# 1. Setup
+git clone https://github.com/riyazbiju/CAIRA.git
+cd CAIRA
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# 2. Download the model (about 3 GB)
+bash scripts/download_qwen.sh
+
+# 3. Prepare the documents and build the search index
+python scripts/pre_processing.py
+python scripts/generate_embeddings.py
+```
+
+Then start the two parts in **two terminals**:
+
+```bash
+# Terminal 1: backend
 python backend/main.py
 
-# Terminal 2: Frontend (new terminal)
+# Terminal 2: chat UI
 python frontend/app.py
 ```
 
-**Access:** http://localhost:7860
+Open **http://localhost:7860** and ask a question.
 
-## What You Can Ask
+---
 
-- **Admissions**: "What are the admission requirements?"
-- **Courses**: "What subjects are in the AI Master program?"
-- **Housing**: "Where can I find accommodation in Würzburg?"
-- **Campus**: "How do I register for exams?"
-- **General**: "What is the semester ticket?"
+## 🔌 API
 
-## System Info
+The backend runs on port **8000**. Interactive docs are at `http://localhost:8000/docs`.
 
-- 340 chunks from 59 THWS documents
-- Qwen2.5-1.5B model (CPU optimized)
-- German and English support
-- ~30-60 second response time
+| Endpoint | What it does |
+|:--|:--|
+| `GET /` | Health check |
+| `GET /health` | Detailed status |
+| `POST /ask` | Ask a question |
+| `GET /stats` | System statistics |
+| `GET /docs` | API documentation |
 
-## Troubleshooting
-
-**Backend won't start:**
-- Check if port 8000 is free: `lsof -ti:8000`
-- Kill conflicting process: `kill <process_id>`
-
-**No responses:**
-- Ensure backend is running: `curl http://localhost:8000/health`
-- Check frontend connects to backend
-
-**Model download fails:**
-- Check internet connection
-- Ensure you have ~3GB free space
-
-## Made for Students
-
-This is a student project designed to help THWS MAI students navigate their academic journey. The chatbot contains official THWS documents and information relevant to Master of AI students.```
-
-pip install -r requirements.txtUser → Gradio UI (Port 7860) → FastAPI Backend (Port 8000) → RAG System → Qwen LLM
-
-```                                                                    ↓
-
-                                                            FAISS Index (271 chunks)
-
-### Running CAIRA```
-
-
-
-**Start Backend** (in terminal 1):## ⚙️ Configuration
-
-```bash
-
-source venv/bin/activate### Speed Optimizations (Applied)
-
-python backend/main.py- **Max tokens**: 150 (reduced from 256)
-
-```- **Context size**: 600 chars per chunk (reduced from 1000)
-
-- **Top-k chunks**: 2 (reduced from 3)
-
-**Start Frontend** (in terminal 2):- **Repetition penalty**: 1.1
-
-```bash
-
-source venv/bin/activate  ### Performance
-
-python frontend/app.py- **Local dev (CPU)**: 30-60 seconds per query
-
-```- **Production (vLLM + GPU)**: 2-5 seconds per query
-
-
-
-**Access CAIRA**: http://localhost:7860## 🎨 UI Features
-
-
-
-## System Information- ✅ THWS branding (orange theme)
-
-- ✅ University logo integration
-
-- **Knowledge Base**: 323 chunks from 55 THWS MAI documents- ✅ Chat interface with history
-
-- **Language Model**: Qwen2.5-1.5B-Instruct (CPU optimized)- ✅ Source document display
-
-- **Embeddings**: multilingual-e5-small (German + English support)- ✅ Example questions
-
-- **Response Time**: 30-60 seconds per query- ✅ Clean, student-friendly design
-
-- **Features**: Cross-topic search, query expansion, ambiguity handling
-
-## 📁 Project Structure
-
-## Production Deployment
-
-```
-
-For production deployment with faster responses:mai-llm/
-
-- Use GPU with vLLM for 2-5 second responses├── backend/
-
-- Configure reverse proxy (nginx) for HTTPS│   └── main.py              # FastAPI backend
-
-- Set environment variables for production settings├── frontend/
-
-│   └── app.py               # Gradio UI
-
-## License├── scripts/
-
-│   ├── rag_with_llm.py      # RAG + LLM integration
-
-Free for personal and educational use.│   └── rag_query.py         # RAG retrieval system
-
-├── preprocessed/
-
----│   └── embeddings/          # FAISS index + chunks
-
-© 2025-2026 CAIRA Team | THWS MAI Program├── models/
-│   ├── qwen2.5-1.5b/        # Fast model (local dev)
-│   └── qwen2.5-7b/          # Better quality (production)
-└── Thws-logo_English.png    # University logo
-```
-
-## 🔧 Troubleshooting
-
-### Backend won't start
-```bash
-# Check if port 8000 is in use
-lsof -ti:8000 | xargs kill -9
-
-# Restart backend
-venv/bin/python backend/main.py
-```
-
-### Frontend shows "Backend not running"
-1. Ensure backend is running (http://localhost:8000/health)
-2. Check backend logs for errors
-3. Restart both services
-
-### Slow responses
-- **Normal**: 30-60 seconds on CPU
-- **To speed up**: Deploy with vLLM + GPU on server
-- **Quick fix**: Reduce `max_new_tokens` further in `rag_with_llm.py`
-
-## 🌐 Production Deployment
-
-### For University Server
-
-1. **Update configuration**:
-   ```python
-   # frontend/app.py
-   API_URL = "http://your-server-ip:8000"
-   ```
-
-2. **Use vLLM for faster inference**:
-   ```bash
-   # On server
-   python -m vllm.entrypoints.openai.api_server \
-       --model models/qwen2.5-7b \
-       --host 0.0.0.0 \
-       --port 8000
-   ```
-
-3. **Update backend to use vLLM**:
-   - Modify `rag_with_llm.py` to call vLLM API instead of loading model
-
-4. **Setup reverse proxy** (nginx):
-   ```nginx
-   location /api {
-       proxy_pass http://localhost:8000;
-   }
-   
-   location / {
-       proxy_pass http://localhost:7860;
-   }
-   ```
-
-5. **Enable HTTPS** with Let's Encrypt
-
-## 📝 API Endpoints
-
-### Backend (FastAPI)
-- `GET /` - Health check
-- `GET /health` - Detailed status
-- `POST /ask` - Ask question
-- `GET /stats` - System statistics
-- `GET /docs` - API documentation
-
-### Example API Call
 ```bash
 curl -X POST http://localhost:8000/ask \
   -H "Content-Type: application/json" \
   -d '{"question": "How do I find housing?", "top_k": 2}'
 ```
 
-## 🛠️ Development
+---
 
-### Install dependencies
-```bash
-pip install -r requirements_ui.txt
+## 📁 Project structure
+
+<details>
+<summary><b>Show the folders</b></summary>
+
+<br>
+
+```
+CAIRA/
+├── backend/            FastAPI backend (main.py)
+├── frontend/           Gradio chat UI (app.py)
+├── scripts/
+│   ├── pre_processing.py        clean and chunk the documents
+│   ├── generate_embeddings.py   build the FAISS index
+│   ├── rag_query.py             retrieval
+│   ├── rag_with_llm.py          retrieval + Qwen answer
+│   └── download_qwen.sh         download the model
+├── source-docs/        official THWS documents
+├── preprocessed/       chunks and embeddings
+├── models/             qwen2.5-1.5b (local) · qwen2.5-7b (production)
+├── docs/               interactive demo page and banner
+└── requirements.txt
 ```
 
-### Run tests
-```bash
-# Test backend
-curl http://localhost:8000/health
+</details>
 
-# Test RAG system
-python scripts/rag_with_llm.py --query "test question"
-```
+---
 
-## 📚 Data Sources
+## 🏭 Production deployment
 
-- **Total chunks**: 271
-- **Source documents**: 46 PDF/DOCX files
-- **Topics**: admission, housing, courses, wurzburg-guide, general
-- **Embedding model**: intfloat/multilingual-e5-small
-- **LLM**: Qwen2.5-1.5B-Instruct (local), Qwen2.5-7B (production)
+<details>
+<summary><b>Set it up on a university server</b></summary>
 
-## 🎓 Credits
+<br>
 
-Built for THWS Master of Artificial Intelligence program
-- RAG Technology
-- Qwen 2.5 LLM
-- FAISS Vector Search
-- FastAPI + Gradio
+1. Set `API_URL` in `frontend/app.py` to the server's address on port 8000.
+2. Serve the model with vLLM's OpenAI-compatible API server.
+3. Change `scripts/rag_with_llm.py` to call the vLLM API.
+4. Put nginx in front: `/api` goes to port 8000 and `/` goes to port 7860.
+5. Turn on HTTPS with Let's Encrypt.
 
-## 📄 License
+</details>
 
-For educational use at THWS
+---
+
+## 🛠️ Troubleshooting
+
+<details>
+<summary><b>Something is not working</b></summary>
+
+<br>
+
+| Problem | What to try |
+|:--|:--|
+| Backend won't start | Check that the virtual environment is active and the model is downloaded |
+| No responses in the chat | Make sure the backend is running on port 8000 before you start the UI |
+| Model download fails | Run `bash scripts/download_qwen.sh` again and check your connection |
+| Answers are slow | Normal on CPU (30–60 s). Use a GPU and the 7B model for production |
+| PDFs are not read | Install Tesseract OCR |
+
+</details>
+
+---
+
+## 📚 Data and credits
+
+- **Data:** official THWS MAI documents on admission, housing, courses, the Würzburg guide and general student topics.
+- **Built with:** [Qwen2.5](https://github.com/QwenLM/Qwen2.5), [FAISS](https://github.com/facebookresearch/faiss), [FastAPI](https://fastapi.tiangolo.com/) and [Gradio](https://www.gradio.app/).
+- **License:** free for personal and educational use.
+
+<div align="center">
+
+Built by **[Riya Biju](https://riyazbiju.github.io)** for THWS MAI students · © 2025–2026 CAIRA Team
+
+</div>
